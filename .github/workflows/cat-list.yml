@@ -1,0 +1,21 @@
+name: 自动登录ssh进行保号
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: 执行登录脚本
+      env:
+        ACCOUNTS: ${{ secrets.ACCOUNTS }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
+      run: |
+        chmod +x ./list.sh
+        ./list.sh
