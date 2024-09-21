@@ -101,7 +101,7 @@ jobs:
         # 重启服务器函数
         restart_server() {
           # 在重启命令中使用全局 UUID (通过环境变量传递)
-          sshpass -p "$3" ssh -o StrictHostKeyChecking=no "$2@$1" "VMESS_PORT=$4 UUID=$UUID ARGO_DOMAIN=$5 ARGO_AUTH='$6' CFIP=${7} CFPORT=${8} bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/00_vmess.sh)"
+          sshpass -p "$3" ssh -o StrictHostKeyChecking=no "$2@$1" "VMESS_PORT=$4 UUID=$UUID ARGO_DOMAIN=$5 ARGO_AUTH='$6' CFIP=${7} CFPORT=${8} bash <(curl -Ls https://raw.githubusercontent.com/eooce/scripts/master/containers-shell/00_vmess.sh)"
         }
 
         # 对每个服务器组进行检查
