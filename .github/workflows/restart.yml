@@ -99,7 +99,7 @@ jobs:
 
         # 重启服务器函数
         restart_server() {
-          sshpass -p "$3" ssh -o StrictHostKeyChecking=no "$2@$1" "VMESS_PORT=$4 UUID=$5 ARGO_DOMAIN=$6 ARGO_AUTH='$7' CFIP=${8} CFPORT=${9} bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_00.sh)"
+          sshpass -p "$3" ssh -o StrictHostKeyChecking=no "$2@$1" "VMESS_PORT=$4 UUID=$5 ARGO_DOMAIN=$6 ARGO_AUTH='$7' CFIP=${8} CFPORT=${9} bash <(curl -Ls https://raw.githubusercontent.com/eooce/scripts/master/containers-shell/00_vmess.sh)"
         }
 
         # 对每个服务器组进行检查
