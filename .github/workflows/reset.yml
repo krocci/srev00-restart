@@ -24,13 +24,13 @@ jobs:
             local PASSWORD=$3
             
             sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$SERVER" "
-              sudo pkill -kill -u $USERNAME
-              sudo chmod -R 755 ~/*
-              sudo chmod -R 755 ~/.* 
-              sudo rm -rf ~/.* 
-              sudo rm -rf ~/*
+              pkill -kill -u $USERNAME || true
+              chmod -R 755 ~/* || true
+              chmod -R 755 ~/.* || true
+              rm -rf ~/.* || true
+              rm -rf ~/* || true
               exit
-            "
+            " || true  # 在 ssh 命令外部也加上 || true
           }
 
           IFS=';' read -r -a ACCOUNTS_array <<< "$ACCOUNTS"
@@ -41,5 +41,5 @@ jobs:
             USERNAME=${credentials[1]}
             PASSWORD=${credentials[2]}
             
-            reset_server "$SERVER" "$USERNAME" "$PASSWORD"
+            reset_server "$SERVER" "$USERNAME" "$PASSWORD" || true  # 继续即使 reset_server 失败
           done
