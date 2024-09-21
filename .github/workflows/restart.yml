@@ -1,0 +1,137 @@
+name: 检测serv00节点运行
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小时执行一次
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  check-ports:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install sshpass
+      run: sudo apt-get install -y sshpass
+
+    - name: Check TCP Ports and Argo Tunnel
+      env:
+        ACCOUNTS: ${{ secrets.ACCOUNTS }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
+        CFIP_CFPORT: ${{ secrets.CFIP_CFPORT }}
+
+      run: |
+        # 设置颜色
+        GREEN='\033[0;32m'
+        RED='\033[0;31m'
+        YELLOW='\033[1;33m'
+        NC='\033[0m'  # 无色
+
+        # 从CFIP_CFPORT中解析出CFIP和CFPORT
+        CFIP=$(echo "${CFIP_CFPORT}" | awk '{print $1}')
+        CFPORT=$(echo "${CFIP_CFPORT}" | awk '{print $2}')
+
+        # 将 ACCOUNTS 环境变量按分号分割为多个服务器组
+        IFS=';' read -r -a ACCOUNT_GROUPS <<< "${ACCOUNTS}"
+
+        # 通用TCP端口检查函数
+        check_tcp_port() {
+          local server="$1"
+          local username="$2"
+          local port="$3"
+          local retries="$4"
+          local sleep_time="$5"
+
+          for i in $(seq 1 "$retries"); do
+            # 使用 netcat 检查TCP端口
+            if nc -zv "$server" "$port"; then
+              echo -e "${GREEN}$username TCP 连接正常 (端口: $port)${NC}"
+              return 0
+            fi
+
+            # 最后一次重试时不sleep
+            if [ "$i" -lt "$retries" ]; then
+              echo -e "${YELLOW}$username TCP 端口 $port 关闭，等待 $sleep_time 秒后重试...${NC}"
+              sleep "$sleep_time"
+            fi
+          done
+          echo -e "${RED}$username TCP 端口 $port 检查失败！${NC}"
+          return 1
+        }
+
+        # Argo Tunnel 检查函数
+        check_argo_tunnel() {
+          local argo_domain="$1"
+          local retries="$2"
+          local sleep_time="$3"
+
+          for i in $(seq 1 "$retries"); do
+            if [ -z "$argo_domain" ]; then
+              echo -e "${YELLOW}Argo Tunnel 域名为空，跳过检查${NC}"
+              return 0
+            fi
+
+            # 使用 curl 检查 Argo Tunnel 状态
+            http_code=$(curl -o /dev/null -s -w "%{http_code}\n" "https://$argo_domain")
+
+            # 检查状态码是否在 200-499 之间
+            if [[ "$http_code" -ge 200 && "$http_code" -lt 500 ]]; then
+              echo -e "${GREEN}Argo Tunnel 连接正常 (域名: $argo_domain, 状态码: $http_code)${NC}"
+              return 0
+            fi
+
+            # 最后一次重试时不sleep
+            if [ "$i" -lt "$retries" ]; then
+              echo -e "${YELLOW}Argo Tunnel 连接异常，状态码: $http_code，等待 $sleep_time 秒后重试...${NC}"
+              sleep "$sleep_time"
+            fi
+          done
+          echo -e "${RED}Argo Tunnel 连接失败！${NC}"
+          return 1
+        }
+
+        # 重启服务器函数
+        restart_server() {
+          sshpass -p "$3" ssh -o StrictHostKeyChecking=no "$2@$1" "VMESS_PORT=$4 UUID=$5 ARGO_DOMAIN=$6 ARGO_AUTH='$7' CFIP=${8} CFPORT=${9} bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_00.sh)"
+        }
+
+        # 对每个服务器组进行检查
+        for ACCOUNT in "${ACCOUNT_GROUPS[@]}"; do
+          # 将每个组的字段分割为参数
+          IFS=' ' read -r -a ACCOUNT_PARAMS <<< "$ACCOUNT"
+          server="${ACCOUNT_PARAMS[0]}"
+          username="${ACCOUNT_PARAMS[1]}"
+          password="${ACCOUNT_PARAMS[2]}"
+          tcp_port="${ACCOUNT_PARAMS[3]}"  # 只检测TCP端口
+          uuid="${ACCOUNT_PARAMS[4]}"
+          argo_domain="${ACCOUNT_PARAMS[5]}"
+          argo_auth="${ACCOUNT_PARAMS[6]}"
+
+          # 检查TCP端口
+          echo -e "${YELLOW}开始检测 $username@$server 的TCP端口 $tcp_port${NC}"
+          if ! check_tcp_port "$server" "$username" "$tcp_port" 3 10; then
+            echo -e "${RED}TCP检测失败，跳过 Argo Tunnel 检测，立即重启服务器${NC}"
+            restart_server "$server" "$username" "$password" "$tcp_port" "$uuid" "$argo_domain" "$argo_auth" "$CFIP" "$CFPORT"
+
+            # 发送Telegram通知
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" -d chat_id="$TELEGRAM_USER_ID" -d text="已重启 $username@$server (TCP端口异常)"
+            continue  # 跳到下一个服务器组
+          fi
+
+          # 检查Argo Tunnel
+          echo -e "${YELLOW}开始检测 $username@$server 的Argo Tunnel${NC}"
+          if ! check_argo_tunnel "$argo_domain" 3 10; then
+            echo -e "${RED}Argo Tunnel检测失败，立即重启服务器${NC}"
+            restart_server "$server" "$username" "$password" "$tcp_port" "$uuid" "$argo_domain" "$argo_auth" "$CFIP" "$CFPORT"
+
+            # 发送Telegram通知
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" -d chat_id="$TELEGRAM_USER_ID" -d text="已重启 $username@$server (Argo Tunnel异常)"
+          fi
+        done
