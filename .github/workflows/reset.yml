@@ -16,7 +16,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      - name: 定义SSH函数
+      - name: 重置服务器
         run: |
           reset_server () {
             local SERVER=$1
@@ -33,8 +33,6 @@ jobs:
             "
           }
 
-      - name: 重置服务器
-        run: |
           IFS=';' read -r -a ACCOUNTS_array <<< "$ACCOUNTS"
           
           for ACCOUNT in "${ACCOUNTS_array[@]}"; do
