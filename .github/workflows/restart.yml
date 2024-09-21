@@ -1,4 +1,4 @@
-name: 检测serv00节点运行
+name: 检测并重启serv00节点
 
 on:
   schedule:
@@ -26,6 +26,7 @@ jobs:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
         CFIP_CFPORT: ${{ secrets.CFIP_CFPORT }}
+        UUID: ${{ secrets.UUID }}  # 通过UUID全局环境变量，所有服务器共用一个UUID
 
       run: |
         # 设置颜色
@@ -99,7 +100,8 @@ jobs:
 
         # 重启服务器函数
         restart_server() {
-          sshpass -p "$3" ssh -o StrictHostKeyChecking=no "$2@$1" "VMESS_PORT=$4 UUID=$5 ARGO_DOMAIN=$6 ARGO_AUTH='$7' CFIP=${8} CFPORT=${9} bash <(curl -Ls https://raw.githubusercontent.com/eooce/scripts/master/containers-shell/00_vmess.sh)"
+          # 在重启命令中使用全局 UUID (通过环境变量传递)
+          sshpass -p "$3" ssh -o StrictHostKeyChecking=no "$2@$1" "VMESS_PORT=$4 UUID=$UUID ARGO_DOMAIN=$5 ARGO_AUTH='$6' CFIP=${7} CFPORT=${8} bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/00_vmess.sh)"
         }
 
         # 对每个服务器组进行检查
@@ -110,15 +112,14 @@ jobs:
           username="${ACCOUNT_PARAMS[1]}"
           password="${ACCOUNT_PARAMS[2]}"
           tcp_port="${ACCOUNT_PARAMS[3]}"  # 只检测TCP端口
-          uuid="${ACCOUNT_PARAMS[4]}"
-          argo_domain="${ACCOUNT_PARAMS[5]}"
-          argo_auth="${ACCOUNT_PARAMS[6]}"
+          argo_domain="${ACCOUNT_PARAMS[4]}"
+          argo_auth="${ACCOUNT_PARAMS[5]}"
 
           # 检查TCP端口
           echo -e "${YELLOW}开始检测 $username@$server 的TCP端口 $tcp_port${NC}"
           if ! check_tcp_port "$server" "$username" "$tcp_port" 3 10; then
             echo -e "${RED}TCP检测失败，跳过 Argo Tunnel 检测，立即重启服务器${NC}"
-            restart_server "$server" "$username" "$password" "$tcp_port" "$uuid" "$argo_domain" "$argo_auth" "$CFIP" "$CFPORT"
+            restart_server "$server" "$username" "$password" "$tcp_port" "$argo_domain" "$argo_auth" "$CFIP" "$CFPORT"
 
             # 发送Telegram通知
             curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" -d chat_id="$TELEGRAM_USER_ID" -d text="已重启 $username@$server (TCP端口异常)"
@@ -129,7 +130,7 @@ jobs:
           echo -e "${YELLOW}开始检测 $username@$server 的Argo Tunnel${NC}"
           if ! check_argo_tunnel "$argo_domain" 3 10; then
             echo -e "${RED}Argo Tunnel检测失败，立即重启服务器${NC}"
-            restart_server "$server" "$username" "$password" "$tcp_port" "$uuid" "$argo_domain" "$argo_auth" "$CFIP" "$CFPORT"
+            restart_server "$server" "$username" "$password" "$tcp_port" "$argo_domain" "$argo_auth" "$CFIP" "$CFPORT"
 
             # 发送Telegram通知
             curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" -d chat_id="$TELEGRAM_USER_ID" -d text="已重启 $username@$server (Argo Tunnel异常)"
