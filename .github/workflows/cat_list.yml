@@ -37,8 +37,8 @@ jobs:
             local password="$3"
             
             # 使用 sshpass 从远程服务器提取 list.txt
-            sshpass -p "$password" ssh -o StrictHostKeyChecking=no "$username@$server" 
-            cat domains/$username.serv00.net/logs/list.txt
+            sshpass -p "$password" ssh -o StrictHostKeyChecking=no "$username@$server"
+            cat ./domains/$username.serv00.net/logs/list.txt
           }
 
           # 遍历每个账户，从对应服务器提取 list.txt 内容
