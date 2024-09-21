@@ -1,0 +1,31 @@
+name: 手动提取并发送 list.txt 文件
+
+on:
+  workflow_dispatch:
+
+jobs:
+  extract_list:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查出环境变量
+        run: |
+          echo "ACCOUNTS=${{ secrets.ACCOUNTS }}" >> $GITHUB_ENV
+          echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> $GITHUB_ENV
+          echo "TELEGRAM_USER_ID=${{ secrets.TELEGRAM_USER_ID }}" >> $GITHUB_ENV
+
+      - name: 提取并发送 list.txt
+        run: |
+          IFS=';' read -r -a ACCOUNTS_array <<< "$ACCOUNTS"
+          TEMP_FILE=$(mktemp)
+          
+          for ACCOUNT in "${ACCOUNTS_array[@]}"; do
+            IFS=' ' read -r -a credentials <<< "$ACCOUNT"
+            SERVER=${credentials[0]}
+            USERNAME=${credentials[1]}
+            PASSWORD=${credentials[2]}
+            
+            sshpass -p $PASSWORD ssh -o StrictHostKeyChecking=no $USERNAME@$SERVER "cat ./domains/$USERNAME.serv00.net/logs/list.txt" >> $TEMP_FILE
+          done
+          
+          curl -s -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument -F chat_id=$TELEGRAM_USER_ID -F document=@$TEMP_FILE
+          rm $TEMP_FILE
