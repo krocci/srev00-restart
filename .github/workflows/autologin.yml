@@ -3,33 +3,47 @@ name: 定期自动登录并发送结果
 on:
   schedule:
     - cron: "0 0 */3 * *"  # 每三天运行一次，可以根据需求调整时间
-  workflow_dispatch:  # 支持手动触发
+  workflow_dispatch:  # 支持手动手动触发
 
 jobs:
   login:
     runs-on: ubuntu-latest
     steps:
-      - name: 检查出环境变量
+      - name: 设置环境变量
         run: |
           echo "ACCOUNTS=${{ secrets.ACCOUNTS }}" >> $GITHUB_ENV
           echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> $GITHUB_ENV
           echo "TELEGRAM_USER_ID=${{ secrets.TELEGRAM_USER_ID }}" >> $GITHUB_ENV
 
+      - name: 安装sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
       - name: 登录并发送结果
         run: |
           #!/bin/bash
+
+          # 将 ACCOUNTS 环境变量分割成账户数组
           IFS=';' read -r -a ACCOUNTS_array <<< "$ACCOUNTS"
+          
+          # 初始化统计变量
           success_count=0
           failure_count=0
           failed_users=()
-          
+
+          # 循环遍历每个账户，尝试登录
           for ACCOUNT in "${ACCOUNTS_array[@]}"; do
+            # 分割每个账户信息，提取 SERVER、USERNAME 和 PASSWORD
             IFS=' ' read -r -a credentials <<< "$ACCOUNT"
-            SERVER=${credentials[0]}
-            USERNAME=${credentials[1]}
-            PASSWORD=${credentials[2]}
+            SERVER="${credentials[0]}"
+            USERNAME="${credentials[1]}"
+            PASSWORD="${credentials[2]}"
             
-            sshpass -p $PASSWORD ssh -o StrictHostKeyChecking=no $USERNAME@$SERVER "echo $USERNAME登录成功"
+            # 使用 sshpass 进行 SSH 登录，并检查是否成功
+            sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$SERVER" "echo $USERNAME 登录成功"
+            
+            # 判断登录结果并更新统计数据
             if [ $? -eq 0 ]; then
               success_count=$((success_count + 1))
             else
@@ -37,10 +51,14 @@ jobs:
               failed_users+=("$USERNAME@$SERVER")
             fi
           done
-          
+
+          # 准备发送给 Telegram 的消息
           message="登录完成，成功 $success_count，失败 $failure_count。"
+          
+          # 如果有失败的账户，附加失败账户信息
           if [ $failure_count -gt 0 ]; then
             message="$message 失败账户：${failed_users[*]}"
           fi
 
-          curl -s -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage -d chat_id=$TELEGRAM_USER_ID -d text="$message"
+          # 使用 curl 通过 Telegram API 发送消息
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" -d chat_id="$TELEGRAM_USER_ID" -d text="$message"
