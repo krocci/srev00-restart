@@ -24,11 +24,11 @@ jobs:
             local PASSWORD=$3
             
             sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$SERVER" "
-              pkill -kill -u $USERNAME
-              chmod -R 755 ~/* 
-              chmod -R 755 ~/.* 
-              rm -rf ~/.* 
-              rm -rf ~/*
+              sudo pkill -kill -u $USERNAME
+              sudo chmod -R 755 ~/*
+              sudo chmod -R 755 ~/.* 
+              sudo rm -rf ~/.* 
+              sudo rm -rf ~/*
               exit
             "
           }
