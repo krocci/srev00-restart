@@ -1,4 +1,4 @@
-name: 自动登录ssh进行list提取
+name: 登录ssh进行list提取
 
 on:
   workflow_dispatch:
