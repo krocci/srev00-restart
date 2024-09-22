@@ -39,16 +39,16 @@ jobs:
             SERVER="${credentials[0]}"
             USERNAME="${credentials[1]}"
             PASSWORD="${credentials[2]}"
-            
-            # 使用 sshpass 进行 SSH 登录，并检查是否成功
-            sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$SERVER"
-            "echo $USERNAME 登录成功"
-            exit
-            
-            # 判断登录结果并更新统计数据
+  
+            # 使用 sshpass 进行 SSH 登录
+            sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$SERVER" exit
+  
+            # 判断 SSH 登录结果并更新统计数据
             if [ $? -eq 0 ]; then
+              echo "$USERNAME 登录成功"
               success_count=$((success_count + 1))
             else
+              echo "$USERNAME 登录失败"
               failure_count=$((failure_count + 1))
               failed_users+=("$USERNAME@$SERVER")
             fi
