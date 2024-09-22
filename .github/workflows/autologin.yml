@@ -15,7 +15,7 @@ jobs:
           echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> $GITHUB_ENV
           echo "TELEGRAM_USER_ID=${{ secrets.TELEGRAM_USER_ID }}" >> $GITHUB_ENV
 
-      - name: 安装sshpass
+      - name: 安装 sshpass
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
@@ -23,7 +23,7 @@ jobs:
       - name: 登录并发送结果
         run: |
           #!/bin/bash
-
+          
           # 将 ACCOUNTS 环境变量分割成账户数组
           IFS=';' read -r -a ACCOUNTS_array <<< "$ACCOUNTS"
           
@@ -39,12 +39,9 @@ jobs:
             SERVER="${credentials[0]}"
             USERNAME="${credentials[1]}"
             PASSWORD="${credentials[2]}"
-  
-            # 使用 sshpass 进行 SSH 登录
-            sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$SERVER" exit
-  
-            # 判断 SSH 登录结果并更新统计数据
-            if [ $? -eq 0 ]; then
+            
+            # 使用 sshpass 进行 SSH 登录，执行 exit 确认连接是否成功，并强制忽略错误
+            if sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$SERVER" exit 2>/dev/null; then
               echo "$USERNAME 登录成功"
               success_count=$((success_count + 1))
             else
