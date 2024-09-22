@@ -46,7 +46,7 @@ jobs:
             PASSWORD="${credentials[2]}"
             
             # 使用 sshpass 进行 SSH 登录，执行 exit 确认连接是否成功，并强制忽略错误
-            if login_server $SERVER $USERNAME $PASSWORD; then
+            if login_server "$SERVER" "$USERNAME" "$PASSWORD"; then
               echo "$USERNAME 登录成功"
               success_count=$((success_count + 1))
             else
