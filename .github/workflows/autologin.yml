@@ -24,14 +24,10 @@ jobs:
         run: |
           #!/bin/bash
 
-          # 登录服务器函数
+          # 重启服务器函数
           login_server() {
-            local server="$1"
-            local username="$2"
-            local password="$3"
-
-            # 使用 sshpass 登录
-            sshpass -p "$password" ssh -o StrictHostKeyChecking=no "$username@$server" exit
+            # 使用 sshpass 进行 SSH 登录，将 PASSWORD 中的 $ 符号转义为 \$
+            sshpass -p "${3//$/\\$}" ssh -o StrictHostKeyChecking=no "$2@$1"
           }
 
           # 将 ACCOUNTS 环境变量分割成账户数组
@@ -50,7 +46,7 @@ jobs:
             USERNAME="${credentials[1]}"
             PASSWORD="${credentials[2]}"
             
-            # 使用 sshpass 登录
+            # 使用 sshpass 进行 SSH 登录，并检查登录是否成功
             if login_server "$SERVER" "$USERNAME" "$PASSWORD"; then
               echo "$USERNAME 登录成功"
               success_count=$((success_count + 1))
