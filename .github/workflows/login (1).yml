@@ -1,0 +1,23 @@
+name: 自动登录ssh进行保号
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 */3 * *"  # 每三天运行一次，可以根据需求调整时间
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: 执行登录脚本
+      env:
+        ACCOUNTS: ${{ secrets.ACCOUNTS }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
+      run: |
+        chmod +x ./login.sh
+        ./login.sh
