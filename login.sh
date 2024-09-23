@@ -1,10 +1,8 @@
 #!/bin/bash
 
 # 将 ACCOUNTS 转换为数组
-IFS=';' read -r -a ACCOUNTS_array <<< "$ACCOUNTS"\
+IFS=';' read -r -a ACCOUNTS_array <<< "$ACCOUNTS"
 
-# 创建一个临时文件来存储所有的 list.txt 内容
-#TEMP_FILE=$(mktemp)
 
 # 初始化计数器
 success_count=0
@@ -23,14 +21,6 @@ for ACCOUNT in "${ACCOUNTS_array[@]}"; do
   # 创建 SSH 连接并运行命令
   sshpass -p $PASSWORD ssh -o StrictHostKeyChecking=no $USERNAME@$SERVER <<EOF
     echo "$USERNAME登录成功"
-    #读取节点信息
-    #cat ./domains/$USERNAME.serv00.net/logs/list.txt
-    #重置服务器
-    #pkill -kill -u $USERNAME
-    #chmod -R 755 ~/* 
-    #chmod -R 755 ~/.* 
-    #rm -rf ~/.* 
-    #rm -rf ~/*
     exit
 EOF
   if [ $? -eq 0 ]; then
@@ -39,7 +29,7 @@ EOF
     failure_count=$((failure_count + 1))
     failed_users+=("$USERNAME@$SERVER")
   fi
-done #>> $TEMP_FILE
+done
 
 #发送通知到 Telegram
 echo "发送登录结果"
@@ -50,14 +40,5 @@ else
   message="$message 全部登录成功！"
 fi
 
-
 curl -s -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage -d chat_id=$TELEGRAM_USER_ID -d text="$message"
 
-#发送节点信息
-#grep -E '(vmess|hysteria2|tuic)://' $TEMP_FILE > list.txt
-
-# 上传 list.txt
-#curl -s -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument -F chat_id=$TELEGRAM_USER_ID -F document=@list.txt
-# 删除临时文件
-#rm $TEMP_FILE
-#rm list.txt
